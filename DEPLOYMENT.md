@@ -6,27 +6,19 @@ Diese Anwendung wird automatisch auf GitHub Pages deployed wenn Code in den `mai
 
 **Live URL:** https://wefoth.github.io/WEBXR_TEST/
 
-## Automatisches Deployment (GitHub Actions)
+## Automatisches Deployment (Branch-Deploy)
 
 ### Konfiguration
 
-Die Deployment-Pipeline ist in `.github/workflows/deploy-pages.yml` konfiguriert:
+GitHub Pages ist auf **"Deploy from a branch"** (main, Root) eingestellt.
+Es ist **kein eigener Workflow nötig** – GitHubs eingebauter
+"pages build and deployment"-Workflow veröffentlicht bei jedem Push
+automatisch den kompletten Repo-Inhalt.
 
-```yaml
-name: Deploy to Pages
-on:
-  push:
-    branches: ["main"]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/configure-pages@v3
-      - uses: actions/upload-pages-artifact@v2
-      - uses: actions/deploy-pages@v2
-```
+> Hinweis: Ein früherer eigener Workflow (`.github/workflows/deploy-pages.yml`
+> mit `actions/deploy-pages`) wurde entfernt. Er funktioniert nur, wenn die
+> Pages-Quelle auf "GitHub Actions" umgestellt wird, und schlug deshalb
+> bei jedem Push fehl.
 
 ### Wie es funktioniert
 
@@ -37,11 +29,11 @@ jobs:
    git push origin main
    ```
 
-2. **GitHub Actions triggered automatisch** (in Actions Tab sichtbar)
+2. **"pages build and deployment" startet automatisch** (im Actions Tab sichtbar)
 
 3. **Build & Deploy** (< 1 Minute)
 
-4. **Live unter:** https://wefoth.github.io/WEBXR_TEST/src/index.html ✅
+4. **Live unter:** https://wefoth.github.io/WEBXR_TEST/ ✅
 
 ## Manuelle Konfiguration (einmalig)
 
