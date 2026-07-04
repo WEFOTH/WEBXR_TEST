@@ -1,8 +1,17 @@
-import qrcode
+"""Generiert die QR-Codes für die GitHub-Pages-URLs nach qr-codes/."""
 from pathlib import Path
 
-url = 'https://wefoth.github.io/WEBXR_TEST/'
-out_path = Path('qrcode.png')
-img = qrcode.make(url)
-img.save(out_path)
-print(f'QR code saved to {out_path.resolve()}')
+import qrcode
+
+BASE_URL = 'https://wefoth.github.io/WEBXR_TEST/'
+OUT_DIR = Path(__file__).parent / 'qr-codes'
+
+TARGETS = {
+    'qrcode.png': BASE_URL,
+    'xr-qrcode.png': BASE_URL + 'src/xr-test.html',
+}
+
+for filename, url in TARGETS.items():
+    out_path = OUT_DIR / filename
+    qrcode.make(url).save(out_path)
+    print(f'{url} -> {out_path}')

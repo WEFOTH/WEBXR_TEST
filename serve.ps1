@@ -1,8 +1,23 @@
-$root = 'g:\Meine Ablage\OTH\CODING\VS Code\OTH WEBXR_TEST'
+$root = $PSScriptRoot
 $listener = [System.Net.HttpListener]::new()
 $listener.Prefixes.Add('http://localhost:8000/')
 $listener.Start()
 Write-Host "Server läuft unter http://localhost:8000/"
+
+$mimeTypes = @{
+    '.html' = 'text/html'
+    '.js'   = 'application/javascript'
+    '.css'  = 'text/css'
+    '.json' = 'application/json'
+    '.glb'  = 'model/gltf-binary'
+    '.gltf' = 'model/gltf+json'
+    '.png'  = 'image/png'
+    '.jpg'  = 'image/jpeg'
+    '.jpeg' = 'image/jpeg'
+    '.svg'  = 'image/svg+xml'
+    '.ico'  = 'image/x-icon'
+    '.bin'  = 'application/octet-stream'
+}
 
 while ($listener.IsListening) {
     $context = $listener.GetContext()
@@ -11,12 +26,9 @@ while ($listener.IsListening) {
 
     $fullPath = Join-Path $root ($requestPath.TrimStart('/'))
     if (Test-Path $fullPath -PathType Leaf) {
-        $contentType = 'text/html'
-        if ($fullPath.EndsWith('.js')) { $contentType = 'application/javascript' }
-        elseif ($fullPath.EndsWith('.css')) { $contentType = 'text/css' }
-        elseif ($fullPath.EndsWith('.json')) { $contentType = 'application/json' }
-        elseif ($fullPath.EndsWith('.glb')) { $contentType = 'model/gltf-binary' }
-        elseif ($fullPath.EndsWith('.gltf')) { $contentType = 'model/gltf+json' }
+        $extension = [System.IO.Path]::GetExtension($fullPath).ToLower()
+        $contentType = 'application/octet-stream'
+        if ($mimeTypes.ContainsKey($extension)) { $contentType = $mimeTypes[$extension] }
 
         $bytes = [System.IO.File]::ReadAllBytes($fullPath)
         $response = $context.Response

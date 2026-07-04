@@ -9,8 +9,8 @@ Ein modernes **Augmented Reality (AR)** System zum Visualisieren und Platzieren 
 ### 🎯 Hauptfunktionen
 - ✅ **3D-Modelle laden** (.glb, .gltf) vom Gerät oder aus der Cloud
 - ✅ **Augmented Reality** - Modelle in realer Umgebung anzeigen
-- ✅ **Intuitive Platzierung** - Button-basiertes Positionieren in AR
-- ✅ **Visuelle Hilfsmittel** - Fadenkreuz, Grid, Schatten für präzises Platzieren
+- ✅ **Hit-Test-Platzierung** - Ring zeigt erkannte Flächen, Tippen platziert das Modell
+- ✅ **Visuelle Hilfsmittel** - Platzierungs-Ring, Grid, Schatten für präzises Platzieren
 - ✅ **Rhino-Integration** - Direkt Rhino-Modelle exportieren und laden
 
 ### 📱 Mobiloptimiert
@@ -57,8 +57,8 @@ Siehe [SETUP.md](SETUP.md) für detaillierte Anleitung.
 WEBXR_TEST/
 ├── src/                    # 🔧 Quellcode (ändern hier!)
 │   ├── index.html         # Hauptanwendung
-│   ├── xr-test.html       # AR Test-Seite
-│   ├── app.js             # 3D-Logik
+│   ├── xr-test.html       # AR Test-Seite (einfacher Funktionstest)
+│   ├── app.js             # 3D-Logik + AR-Platzierung
 │   └── styles.css         # Styling
 │
 ├── assets/                # 📦 3D-Modelle
@@ -69,14 +69,15 @@ WEBXR_TEST/
 │   ├── qrcode.html        # App QR-Link
 │   └── xr-qrcode.html     # XR Test QR-Link
 │
-├── docs/                  # 📚 Dokumentation
-│   ├── PROJECT_SPEC.md    # Technische Specs
-│   ├── SETUP.md           # Installation Guide
-│   ├── ARCHITECTURE.md    # Technische Details
-│   └── DEPLOYMENT.md      # GitHub Pages Deploy
+├── docs/                  # 📷 Screenshots
 │
 └── 📄 Wurzel
     ├── README.md          # Diese Datei
+    ├── index.html         # Weiterleitung zu src/index.html
+    ├── PROJECT_SPEC.md    # Technische Specs
+    ├── SETUP.md           # Installation Guide
+    ├── ARCHITECTURE.md    # Technische Details
+    ├── DEPLOYMENT.md      # GitHub Pages Deploy
     ├── make_qr.py         # QR-Generator
     ├── serve.ps1          # Dev-Server
     └── .nojekyll          # GitHub Pages Config
@@ -97,24 +98,21 @@ Browser zeigt 3D-Ansicht mit OrbitControls
 
 ### 2️⃣ Augmented Reality aktivieren
 ```
-Tippe auf AR-Button
+Tippe auf "START AR"
     ↓
-Browser startet AR-Session
+Browser startet AR-Session (Kamerabild wird sichtbar)
     ↓
-Camera macht Live-Video
+Handy langsam bewegen, bis der Ring auf einer Fläche erscheint
     ↓
-3D-Objekt wird auf reale Szene gelegt
-    ↓
-Tippe "Objekt platzieren" um zu duplizieren
+Auf den Bildschirm tippen → Modell steht auf der Fläche
 ```
 
 ### 3️⃣ Platzierung verfeinern
 ```
-Fadenkreuz (oben) = Zielpunkt
-Grid (unten)      = Referenzebene
-Schatten          = Höhe & Tiefe
+Ring (Reticle)  = erkannte reale Fläche (Boden, Tisch, …)
+Ohne Ring       = Fallback: Modell landet 1,5 m in Blickrichtung
     ↓
-Tipp: Button mehrmals klicken um mehrere Objekte zu platzieren
+Tipp: Mehrmals tippen um mehrere Objekte zu platzieren
 ```
 
 ## Häufig gefragt ❓
@@ -144,7 +142,7 @@ Häufige Gründe:
 
 **F: Kann ich mehrere Objekte platzieren?**
 ```
-Ja! Button mehrmals tippen = mehrere Klone platzieren.
+Ja! Einfach mehrmals auf den Bildschirm tippen = mehrere Klone platzieren.
 ```
 
 **F: Kann ich meine Platzierung speichern?**
@@ -180,9 +178,9 @@ const sampleModelUrl = '../assets/Test.glb'; // ← Modell URL
 background: #4f46e5; /* ← Farben ändern */
 ```
 
-**AR Funktionen:** `src/xr-test.html`
+**AR Funktionen:** `src/app.js` (Abschnitt "Augmented Reality")
 ```javascript
-// AR-Session, Objektplatzierung, Visuals
+// AR-Session, Hit-Test, Reticle, Objektplatzierung
 renderer.xr.addEventListener('sessionstart', () => { ... });
 ```
 
