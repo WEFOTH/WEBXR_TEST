@@ -97,6 +97,39 @@
         padding: 0.15rem;
         cursor: pointer;
       }
+      #selectControl {
+        margin-top: 0.8rem;
+      }
+      #selectControl label {
+        display: block;
+        margin-bottom: 0.3rem;
+      }
+      .objRow {
+        display: flex;
+        gap: 0.4rem;
+        align-items: center;
+        margin-bottom: 0.4rem;
+      }
+      .objRow button {
+        flex: 1;
+        padding: 0.45rem 0.6rem;
+        border-radius: 6px;
+        background: #1e293b;
+        color: white;
+        border: 1px solid #475569;
+        cursor: pointer;
+        font-size: 0.9rem;
+      }
+      .objRow button.danger {
+        background: #7f1d1d;
+        border-color: #b91c1c;
+      }
+      #objLabel {
+        flex: 2;
+        text-align: center;
+        font-size: 0.9rem;
+        color: #cbd5e1;
+      }
       /* Crosshair für AR Positionierung */
       #crosshair {
         position: absolute;
@@ -150,6 +183,18 @@
         </select>
         <label for="colorInput">Farbe:</label>
         <input type="color" id="colorInput" value="#4f46e5" />
+      </div>
+      <div id="selectControl">
+        <label>Objektauswahl:</label>
+        <div class="objRow">
+          <button id="prevObjBtn" type="button">◀</button>
+          <span id="objLabel">kein Objekt</span>
+          <button id="nextObjBtn" type="button">▶</button>
+        </div>
+        <div class="objRow">
+          <button id="moveObjBtn" type="button">Verschieben</button>
+          <button id="deleteObjBtn" type="button" class="danger">Löschen</button>
+        </div>
       </div>
     </div>
     <div id="arStatus">Bereit für AR</div>
@@ -265,6 +310,7 @@
           scaleValue.textContent = `${obj.scaleFactor.toFixed(1)}×`;
           shadingSelect.value = obj.shading;
           colorInput.value = '#' + obj.mesh.material.color.getHexString();
+          objLabel.textContent = `Objekt ${placedObjects.indexOf(obj) + 1} von ${placedObjects.length}`;
           arStatus.textContent = `Objekt ${placedObjects.indexOf(obj) + 1} ausgewählt`;
         } else {
           // Keine Auswahl: UI steuert Vorschau und neue Objekte
@@ -272,6 +318,7 @@
           scaleValue.textContent = `${currentScale.toFixed(1)}×`;
           shadingSelect.value = currentShading;
           colorInput.value = currentColor;
+          objLabel.textContent = placedObjects.length > 0 ? `kein Objekt (${placedObjects.length} platziert)` : 'kein Objekt';
           arStatus.textContent = 'Tippe ein Objekt an, um es auszuwählen';
         }
         updateSelectionRing();
@@ -350,6 +397,55 @@
         }
       });
 
+      // --- Auswahl-Buttons: Durchschalten, Verschieben, Löschen ---
+      const objLabel = document.getElementById('objLabel');
+
+      function cycleSelection(dir) {
+        if (placedObjects.length === 0) return;
+        let idx = selectedObject ? placedObjects.indexOf(selectedObject) : -1;
+        if (idx === -1) {
+          idx = dir > 0 ? 0 : placedObjects.length - 1;
+        } else {
+          idx = (idx + dir + placedObjects.length) % placedObjects.length;
+        }
+        selectObject(placedObjects[idx]);
+      }
+
+      document.getElementById('prevObjBtn').addEventListener('click', () => cycleSelection(-1));
+      document.getElementById('nextObjBtn').addEventListener('click', () => cycleSelection(1));
+
+      // Gewähltes Objekt an den aktuellen Zielpunkt (Reticle) versetzen
+      document.getElementById('moveObjBtn').addEventListener('click', () => {
+        if (!selectedObject || !isARActive) return;
+        const target = getPlacementPoint();
+        selectedObject.basePoint.copy(target.point);
+        selectedObject.onSurface = target.onSurface;
+        attachAnchor(selectedObject);
+        updatePlacedTransform(selectedObject);
+        updateSelectionRing();
+        document.getElementById('arStatus').textContent = 'Objekt verschoben';
+      });
+
+      // Gewähltes Objekt samt Schatten entfernen
+      document.getElementById('deleteObjBtn').addEventListener('click', () => {
+        if (!selectedObject) return;
+        const obj = selectedObject;
+        const idx = placedObjects.indexOf(obj);
+        scene.remove(obj.mesh);
+        scene.remove(obj.shadow);
+        obj.mesh.material.dispose(); // Material ist pro Objekt geklont
+        obj.shadow.geometry.dispose();
+        if (obj.anchor && typeof obj.anchor.delete === 'function') obj.anchor.delete();
+        placedObjects.splice(idx, 1);
+        // Nächstes verbleibendes Objekt auswählen, sonst Auswahl aufheben
+        if (placedObjects.length > 0) {
+          selectObject(placedObjects[Math.min(idx, placedObjects.length - 1)]);
+        } else {
+          selectObject(null);
+        }
+        document.getElementById('arStatus').textContent = 'Objekt gelöscht';
+      });
+
       // Schatten-Material für Objekte
       const shadowMaterial = new THREE.ShadowMaterial({ opacity: 0.3 });
 
@@ -369,6 +465,37 @@
         }
       }
 
+      // Aktuellen Zielpunkt bestimmen: Hit-Test-Punkt auf realer Fläche
+      // oder Fallback 2 m in Blickrichtung
+      function getPlacementPoint() {
+        const point = new THREE.Vector3();
+        const onSurface = reticle.visible;
+        if (onSurface) {
+          point.setFromMatrixPosition(reticle.matrix);
+        } else {
+          const xrCamera = renderer.xr.getCamera();
+          const direction = new THREE.Vector3();
+          xrCamera.getWorldDirection(direction);
+          xrCamera.getWorldPosition(point);
+          point.addScaledVector(direction, 2);
+        }
+        return { point: point, onSurface: onSurface };
+      }
+
+      // WebXR-Anker halten das Objekt am realen Punkt fest, auch wenn
+      // das Tracking die Umgebung später neu einschätzt
+      function attachAnchor(obj) {
+        if (obj.anchor && typeof obj.anchor.delete === 'function') obj.anchor.delete();
+        obj.anchor = null;
+        if (obj.onSurface && lastHitResult && lastHitResult.createAnchor) {
+          lastHitResult.createAnchor().then((anchor) => {
+            obj.anchor = anchor;
+          }).catch(() => {
+            // Gerät ohne Anker-Unterstützung: Objekt bleibt an Weltkoordinate
+          });
+        }
+      }
+
       // Platzierungs-Button
       placeBtn.addEventListener('click', () => {
         if (!isARActive) return;
@@ -376,21 +503,7 @@
         const newMesh = mesh.clone();
         // Eigenes Material, damit Shading/Farbe pro Objekt änderbar bleiben
         newMesh.material = mesh.material.clone();
-        const basePoint = new THREE.Vector3();
-        const onSurface = reticle.visible;
-
-        if (onSurface) {
-          // Am Hit-Test-Punkt auf der realen Fläche fixieren
-          basePoint.setFromMatrixPosition(reticle.matrix);
-        } else {
-          // Fallback ohne Hit-Test: 2 m in Blickrichtung platzieren
-          const xrCamera = renderer.xr.getCamera();
-          const direction = new THREE.Vector3();
-          xrCamera.getWorldDirection(direction);
-          xrCamera.getWorldPosition(basePoint);
-          basePoint.addScaledVector(direction, 2);
-        }
-
+        const target = getPlacementPoint();
         scene.add(newMesh);
 
         const shadowGeo = new THREE.PlaneGeometry(1.2, 1.2);
@@ -401,25 +514,16 @@
         const placed = {
           mesh: newMesh,
           shadow: shadow,
-          basePoint: basePoint,
-          onSurface: onSurface,
+          basePoint: target.point,
+          onSurface: target.onSurface,
           anchor: null,
           scaleFactor: currentScale,
           shading: currentShading
         };
         updatePlacedTransform(placed);
         placedObjects.push(placed);
+        attachAnchor(placed);
         selectObject(placed); // neues Objekt ist direkt ausgewählt
-
-        // WebXR-Anker halten das Objekt am realen Punkt fest, auch wenn
-        // das Tracking die Umgebung später neu einschätzt
-        if (onSurface && lastHitResult && lastHitResult.createAnchor) {
-          lastHitResult.createAnchor().then((anchor) => {
-            placed.anchor = anchor;
-          }).catch(() => {
-            // Gerät ohne Anker-Unterstützung: Objekt bleibt an Weltkoordinate
-          });
-        }
 
         const arStatus = document.getElementById('arStatus');
         arStatus.textContent = `${placedObjects.length} Objekt(e) platziert!`;
