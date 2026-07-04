@@ -42,8 +42,11 @@ grid.position.y = 0.002;
 scene.add(grid);
 
 const fileInput = document.getElementById('fileInput');
+const loadSampleBtn = document.getElementById('loadSampleBtn');
 const resetViewBtn = document.getElementById('resetViewBtn');
+const statusText = document.getElementById('statusText');
 
+const sampleModelUrl = './Test.glb';
 let activeModel = null;
 
 function createDefaultModel() {
@@ -106,10 +109,43 @@ function resetView() {
   controls.update();
 }
 
+function updateStatus(message) {
+  if (statusText) {
+    statusText.textContent = message;
+  }
+}
+
+function loadModelFromUrl(url, label = 'Modell') {
+  const loader = new GLTFLoader();
+  updateStatus(`Lade ${label}…`);
+
+  loader.load(
+    url,
+    (gltf) => {
+      const model = gltf.scene;
+      model.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+      setModel(model);
+      updateStatus(`${label} geladen.`);
+    },
+    undefined,
+    (error) => {
+      console.error('Fehler beim Laden des Modells', error);
+      updateStatus(`Fehler: ${label} konnte nicht geladen werden.`);
+      window.alert('Das Modell konnte nicht geladen werden. Bitte prüfe, ob die Datei ein gültiges GLTF/GLB ist.');
+    }
+  );
+}
+
 function loadModelFromFile(file) {
   const url = URL.createObjectURL(file);
-  const loader = new GLTFLoader();
+  loadModelFromUrl(url, file.name);
 
+  const loader = new GLTFLoader();
   loader.load(
     url,
     (gltf) => {
@@ -126,6 +162,7 @@ function loadModelFromFile(file) {
     undefined,
     (error) => {
       console.error('Fehler beim Laden des Modells', error);
+      updateStatus(`Fehler: ${file.name} konnte nicht geladen werden.`);
       window.alert('Das Modell konnte nicht geladen werden. Bitte prüfe, ob die Datei ein gültiges GLTF/GLB ist.');
       URL.revokeObjectURL(url);
     }
@@ -139,10 +176,15 @@ fileInput.addEventListener('change', (event) => {
   }
 });
 
+loadSampleBtn.addEventListener('click', () => {
+  loadModelFromUrl(sampleModelUrl, 'Testmodell');
+});
+
 resetViewBtn.addEventListener('click', resetView);
 
 setModel(createDefaultModel());
 resetView();
+loadModelFromUrl(sampleModelUrl, 'Testmodell');
 
 const arButton = ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] });
 document.body.appendChild(arButton);

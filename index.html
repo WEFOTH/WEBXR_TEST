@@ -16,8 +16,10 @@
       <div class="controls">
         <label class="button" for="fileInput">Rhino-Modell laden</label>
         <input id="fileInput" type="file" accept=".glb,.gltf" />
+        <button id="loadSampleBtn" type="button">Testmodell laden</button>
         <button id="resetViewBtn" type="button">Ansicht zurücksetzen</button>
       </div>
+      <p id="statusText" class="hint">Warte auf Modell…</p>
       <p class="hint">
         Tipp: In Rhino kannst du das Modell über Exportieren als GLTF/GLB speichern.
         Für WebXR sind GLTF/GLB die beste Wahl.
