@@ -59,6 +59,48 @@ p {
   gap: 0.5rem;
 }
 
+.actionRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+}
+
+.primaryAction {
+  background: #22c55e;
+  color: #052e16;
+  font-weight: 700;
+}
+
+.scaleStrip {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.65rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 12px;
+  background: rgba(30, 41, 59, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.scaleStrip label {
+  font-size: 0.85rem;
+  color: #cbd5e1;
+}
+
+.scaleStrip input[type='range'] {
+  width: 100%;
+  accent-color: #4f46e5;
+}
+
+.scaleStrip span {
+  min-width: 3.5rem;
+  text-align: right;
+  font-size: 0.85rem;
+  color: #e2e8f0;
+}
+
 .secondary {
   background: rgba(30, 41, 59, 0.95);
   border: 1px solid rgba(148, 163, 184, 0.3);
@@ -184,7 +226,16 @@ input[type="file"] {
     inset: 0.6rem auto auto 0.6rem;
   }
 
-  .axisGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .actionRow {
+    grid-template-columns: 1fr;
+  }
+
+  .scaleStrip {
+    grid-template-columns: 1fr;
+  }
+
+  .scaleStrip span {
+    text-align: left;
+    min-width: 0;
   }
 }

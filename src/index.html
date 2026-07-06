@@ -26,58 +26,30 @@
         <input id="fileInput" type="file" accept=".glb,.gltf" />
         <button id="loadSampleBtn" type="button">Testmodell laden</button>
         <button id="resetViewBtn" type="button">Ansicht zurücksetzen</button>
-        <button id="toolsToggleBtn" type="button" class="secondary">Werkzeuge</button>
       </div>
-      <div id="toolsSheet" class="sheet" hidden>
-        <div class="panel">
-          <h2>Praezision in AR</h2>
-          <div class="controls compact">
-            <button id="prevObjBtn" type="button">Objekt vorher</button>
-            <button id="nextObjBtn" type="button">Objekt naechstes</button>
-          </div>
-          <p id="selectionText" class="hint">Auswahl: kein Objekt</p>
-          <div class="stepRow">
-            <label for="snapToggle">Snap 0.5 cm</label>
-            <input id="snapToggle" type="checkbox" checked />
-            <label for="angleStep">Winkel</label>
-            <select id="angleStep">
-              <option value="1">1 deg</option>
-              <option value="5" selected>5 deg</option>
-              <option value="15">15 deg</option>
-            </select>
-          </div>
-          <div class="axisGrid">
-            <button id="moveXNeg" type="button">X-</button>
-            <button id="moveXPos" type="button">X+</button>
-            <button id="moveYNeg" type="button">Y-</button>
-            <button id="moveYPos" type="button">Y+</button>
-            <button id="moveZNeg" type="button">Z-</button>
-            <button id="moveZPos" type="button">Z+</button>
-          </div>
-          <div class="axisGrid">
-            <button id="rotXNeg" type="button">Rot X-</button>
-            <button id="rotXPos" type="button">Rot X+</button>
-            <button id="rotYNeg" type="button">Rot Y-</button>
-            <button id="rotYPos" type="button">Rot Y+</button>
-            <button id="rotZNeg" type="button">Rot Z-</button>
-            <button id="rotZPos" type="button">Rot Z+</button>
-          </div>
-        </div>
-        <p id="statusText" class="statusPill">Warte auf Modell…</p>
-        <p id="precisionText" class="hint">Pos: 0.000, 0.000, 0.000 | Rot: 0.0, 0.0, 0.0</p>
+      <div class="actionRow">
+        <button id="placeBtn" type="button" class="primaryAction">Objekt platzieren</button>
+        <button id="deleteBtn" type="button" class="secondary">Objekt löschen</button>
+        <button id="viewModeBtn" type="button" class="secondary">Ansicht: Original</button>
+      </div>
+      <div class="scaleStrip">
+        <label for="scaleSlider">Skalieren</label>
+        <input id="scaleSlider" type="range" min="0.25" max="3" step="0.05" value="1" />
+        <span id="scaleValue">1.00×</span>
+      </div>
+      <p id="selectionText" class="hint">Auswahl: kein Objekt</p>
+      <p id="statusText" class="statusPill">Warte auf Modell…</p>
+      <p id="precisionText" class="hint">Skalierung: 1.00×</p>
+      <p class="hint">
+        Tippe im AR-Modus ein Objekt an, um es auszuwählen. Danach kannst du es löschen,
+        in der Ansicht ändern oder skalieren. Ein weiterer Platzierungs-Tap erzeugt ein neues Objekt.
+      </p>
+      <div id="errorPanel" class="errorPanel" hidden>
+        <strong>Fehler beim Laden</strong>
+        <p id="errorMessage" class="hint">Unbekannter Fehler.</p>
         <p class="hint">
-          Tipp: In Rhino das Modell über Exportieren als <strong>.glb</strong> speichern
-          (bettet Texturen ein). Im AR-Modus das Handy langsam bewegen, bis der Ring
-          auf einer Fläche erscheint. Tippen platziert ein Objekt, danach kann es uebers
-          Koordinatensystem in 0.5-cm-Schritten fein ausgerichtet werden.
+          Bitte Seite neu laden. Wenn es weiter haengt, in Chrome oeffnen und Browser-Cache leeren.
         </p>
-        <div id="errorPanel" class="errorPanel" hidden>
-          <strong>Fehler beim Laden</strong>
-          <p id="errorMessage" class="hint">Unbekannter Fehler.</p>
-          <p class="hint">
-            Bitte Seite neu laden. Wenn es weiter haengt, in Chrome oeffnen und Browser-Cache leeren.
-          </p>
-        </div>
       </div>
     </div>
 

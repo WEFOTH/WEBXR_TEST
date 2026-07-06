@@ -61,19 +61,29 @@ const resetViewBtn = document.getElementById('resetViewBtn');
 const statusText = document.getElementById('statusText');
 const precisionText = document.getElementById('precisionText');
 const selectionText = document.getElementById('selectionText');
-const prevObjBtn = document.getElementById('prevObjBtn');
-const nextObjBtn = document.getElementById('nextObjBtn');
-const snapToggle = document.getElementById('snapToggle');
-const angleStepSelect = document.getElementById('angleStep');
-const toolsToggleBtn = document.getElementById('toolsToggleBtn');
-const toolsSheet = document.getElementById('toolsSheet');
+const placeBtn = document.getElementById('placeBtn');
+const deleteBtn = document.getElementById('deleteBtn');
+const viewModeBtn = document.getElementById('viewModeBtn');
+const scaleSlider = document.getElementById('scaleSlider');
+const scaleValue = document.getElementById('scaleValue');
 
 const sampleModelUrl = '../assets/Test.glb';
+const viewModes = ['original', 'color', 'wireframe', 'metall', 'matt'];
+const viewModeLabels = {
+  original: 'Original',
+  color: 'Farbe',
+  wireframe: 'Wireframe',
+  metall: 'Metall',
+  matt: 'Matt',
+};
+const selectionTint = new THREE.Color(0xfacc15);
 
 // modelRoot hält das zentrierte Modell; AR-Klone kopieren die ganze Gruppe.
 const modelRoot = new THREE.Group();
 scene.add(modelRoot);
 let activeModel = null;
+let currentViewMode = 'original';
+let currentScaleFactor = 1;
 
 function createDefaultModel() {
   const group = new THREE.Group();
@@ -152,10 +162,55 @@ function updateStatus(message) {
   }
 }
 
-function setToolsOpen(open) {
-  if (!toolsSheet || !toolsToggleBtn) return;
-  toolsSheet.hidden = !open;
-  toolsToggleBtn.textContent = open ? 'Werkzeuge schließen' : 'Werkzeuge';
+function updateScaleText(value) {
+  if (scaleValue) {
+    scaleValue.textContent = `${value.toFixed(2)}×`;
+  }
+  if (precisionText) {
+    precisionText.textContent = `Skalierung: ${value.toFixed(2)}×`;
+  }
+}
+
+function updateViewModeText(mode) {
+  if (viewModeBtn) {
+    viewModeBtn.textContent = `Ansicht: ${viewModeLabels[mode] || mode}`;
+  }
+}
+
+function applyViewModeToNode(node, mode) {
+  if (!node) return;
+
+  node.traverse((child) => {
+    if (!child.isMesh) return;
+
+    if (!child.baseMaterial) {
+      child.baseMaterial = child.material.clone();
+    }
+    if (!child.shadeMaterial) {
+      child.shadeMaterial = child.material.clone();
+    }
+
+    const material = mode === 'original' ? child.baseMaterial : child.shadeMaterial;
+    if (mode !== 'original') {
+      material.color.copy(child.baseMaterial.color || new THREE.Color(0x4f46e5));
+      material.wireframe = mode === 'wireframe';
+      material.transparent = mode === 'matt' ? false : material.transparent;
+      material.opacity = mode === 'matt' ? 1 : material.opacity;
+      if (mode === 'metall') {
+        material.metalness = 1;
+        material.roughness = 0.15;
+      } else if (mode === 'matt') {
+        material.metalness = 0;
+        material.roughness = 1;
+      } else {
+        material.metalness = 0.35;
+        material.roughness = 0.35;
+      }
+      material.needsUpdate = true;
+    }
+
+    child.material = material;
+  });
 }
 
 function loadModelFromUrl(url, label = 'Modell', revokeAfterLoad = false) {
@@ -222,16 +277,11 @@ loadSampleBtn.addEventListener('click', () => {
 
 resetViewBtn.addEventListener('click', resetView);
 
-if (toolsToggleBtn) {
-  toolsToggleBtn.addEventListener('click', () => {
-    setToolsOpen(toolsSheet ? toolsSheet.hidden : true);
-  });
-}
-
 setModel(createDefaultModel());
 resetView();
 updateStatus('Klicke auf einen Button, um ein Modell zu laden.');
-setToolsOpen(false);
+updateScaleText(currentScaleFactor);
+updateViewModeText(currentViewMode);
 
 // --- Augmented Reality ---
 
@@ -263,7 +313,39 @@ const fallbackStep = 0.01;
 const arPixelRatioCap = 1.5;
 
 const controller = renderer.xr.getController(0);
-controller.addEventListener('select', placeModel);
+const raycaster = new THREE.Raycaster();
+const tempMatrix = new THREE.Matrix4();
+
+function selectObjectFromTap() {
+  tempMatrix.identity().extractRotation(controller.matrixWorld);
+  raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+  raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+
+  const hits = raycaster.intersectObjects(placedObjects.map((obj) => obj.group), true);
+  if (hits.length === 0) {
+    return false;
+  }
+
+  let target = hits[0].object;
+  let selected = null;
+  while (target && !selected) {
+    selected = placedObjects.find((obj) => obj.group === target) || null;
+    target = target.parent;
+  }
+
+  if (selected) {
+    selectObject(placedObjects.indexOf(selected));
+    updateStatus('Objekt ausgewählt.');
+    return true;
+  }
+
+  return false;
+}
+
+controller.addEventListener('select', () => {
+  if (selectObjectFromTap()) return;
+  placeModel();
+});
 scene.add(controller);
 
 function toDegrees(rad) {
@@ -282,14 +364,11 @@ function updatePrecisionText() {
   if (!precisionText) return;
 
   if (!selected) {
-    precisionText.textContent = 'Pos: 0.000, 0.000, 0.000 | Rot: 0.0, 0.0, 0.0';
+    precisionText.textContent = `Skalierung: ${currentScaleFactor.toFixed(2)}×`;
     return;
   }
 
-  const p = selected.group.position;
-  const r = selected.group.rotation;
-  precisionText.textContent =
-    `Pos: ${p.x.toFixed(3)}, ${p.y.toFixed(3)}, ${p.z.toFixed(3)} | Rot: ${toDegrees(r.x).toFixed(1)}, ${toDegrees(r.y).toFixed(1)}, ${toDegrees(r.z).toFixed(1)}`;
+  precisionText.textContent = `Skalierung: ${selected.scaleFactor.toFixed(2)}× | Ansicht: ${viewModeLabels[selected.viewMode] || selected.viewMode}`;
 }
 
 function updateSelectionText() {
@@ -305,13 +384,29 @@ function setObjectHighlight(placed, active) {
   placed.axes.visible = active;
   placed.group.traverse((child) => {
     if (!child.isMesh || !child.material || !child.material.color) return;
-    const emissive = child.material.emissive;
     if (active) {
-      if (emissive && emissive.setHex) emissive.setHex(0x111111);
-      child.material.emissiveIntensity = 0.35;
+      child._selectionState = {
+        color: child.material.color.clone(),
+        emissive: child.material.emissive ? child.material.emissive.clone() : null,
+        emissiveIntensity: child.material.emissiveIntensity,
+      };
+    }
+
+    const saved = child._selectionState;
+    if (active) {
+      child.material.color.copy(selectionTint);
+      if (child.material.emissive && child.material.emissive.setHex) {
+        child.material.emissive.setHex(0x3b2f00);
+      }
+      child.material.emissiveIntensity = 0.4;
     } else {
-      if (emissive && emissive.setHex) emissive.setHex(0x000000);
-      child.material.emissiveIntensity = 0;
+      if (saved) {
+        child.material.color.copy(saved.color);
+        if (saved.emissive && child.material.emissive) {
+          child.material.emissive.copy(saved.emissive);
+        }
+        child.material.emissiveIntensity = saved.emissiveIntensity || 0;
+      }
     }
   });
 }
@@ -330,6 +425,13 @@ function selectObject(index) {
 
   const next = getSelectedObject();
   if (next) {
+    currentViewMode = next.viewMode || currentViewMode;
+    currentScaleFactor = next.scaleFactor || currentScaleFactor;
+    if (scaleSlider) {
+      scaleSlider.value = currentScaleFactor;
+    }
+    updateScaleText(currentScaleFactor);
+    updateViewModeText(currentViewMode);
     setObjectHighlight(next, true);
   }
 
@@ -401,6 +503,11 @@ function createPlacedAxes() {
   return axes;
 }
 
+function applyPlacementSettingsToNode(node, viewMode, scaleFactor) {
+  applyViewModeToNode(node, viewMode);
+  node.scale.setScalar(scaleFactor);
+}
+
 function placeModel() {
   if (!renderer.xr.isPresenting || !activeModel) return;
 
@@ -433,16 +540,16 @@ function placeModel() {
 
   const axes = createPlacedAxes();
   clone.add(axes);
+  applyPlacementSettingsToNode(clone, currentViewMode, currentScaleFactor);
 
   scene.add(clone);
-  placedObjects.push({ group: clone, axes });
+  placedObjects.push({ group: clone, axes, viewMode: currentViewMode, scaleFactor: currentScaleFactor });
   selectObject(placedObjects.length - 1);
   updateStatus(`${placedObjects.length} Objekt(e) platziert – erneut tippen fuer mehr.`);
 }
 
 renderer.xr.addEventListener('sessionstart', () => {
   isArSessionActive = true;
-  setToolsOpen(false);
 
   // Hintergrund/Fog würden das Kamerabild übermalen.
   scene.background = null;
@@ -504,45 +611,62 @@ window.addEventListener('resize', () => {
   }
 });
 
-if (prevObjBtn) prevObjBtn.addEventListener('click', () => cycleSelection(-1));
-if (nextObjBtn) nextObjBtn.addEventListener('click', () => cycleSelection(1));
+if (placeBtn) {
+  placeBtn.addEventListener('click', () => placeModel());
+}
 
-const moveXNegBtn = document.getElementById('moveXNeg');
-const moveXPosBtn = document.getElementById('moveXPos');
-const moveYNegBtn = document.getElementById('moveYNeg');
-const moveYPosBtn = document.getElementById('moveYPos');
-const moveZNegBtn = document.getElementById('moveZNeg');
-const moveZPosBtn = document.getElementById('moveZPos');
-const rotXNegBtn = document.getElementById('rotXNeg');
-const rotXPosBtn = document.getElementById('rotXPos');
-const rotYNegBtn = document.getElementById('rotYNeg');
-const rotYPosBtn = document.getElementById('rotYPos');
-const rotZNegBtn = document.getElementById('rotZNeg');
-const rotZPosBtn = document.getElementById('rotZPos');
+if (deleteBtn) {
+  deleteBtn.addEventListener('click', () => {
+    const selected = getSelectedObject();
+    if (!selected) {
+      updateStatus('Kein Objekt ausgewählt.');
+      return;
+    }
 
-if (moveXNegBtn) moveXNegBtn.addEventListener('click', () => moveSelectedObject('x', -1));
-if (moveXPosBtn) moveXPosBtn.addEventListener('click', () => moveSelectedObject('x', 1));
-if (moveYNegBtn) moveYNegBtn.addEventListener('click', () => moveSelectedObject('y', -1));
-if (moveYPosBtn) moveYPosBtn.addEventListener('click', () => moveSelectedObject('y', 1));
-if (moveZNegBtn) moveZNegBtn.addEventListener('click', () => moveSelectedObject('z', -1));
-if (moveZPosBtn) moveZPosBtn.addEventListener('click', () => moveSelectedObject('z', 1));
+    const index = placedObjects.indexOf(selected);
+    scene.remove(selected.group);
+    placedObjects.splice(index, 1);
+    selectedObjectIndex = -1;
 
-if (rotXNegBtn) rotXNegBtn.addEventListener('click', () => rotateSelectedObject('x', -1));
-if (rotXPosBtn) rotXPosBtn.addEventListener('click', () => rotateSelectedObject('x', 1));
-if (rotYNegBtn) rotYNegBtn.addEventListener('click', () => rotateSelectedObject('y', -1));
-if (rotYPosBtn) rotYPosBtn.addEventListener('click', () => rotateSelectedObject('y', 1));
-if (rotZNegBtn) rotZNegBtn.addEventListener('click', () => rotateSelectedObject('z', -1));
-if (rotZPosBtn) rotZPosBtn.addEventListener('click', () => rotateSelectedObject('z', 1));
+    if (placedObjects.length > 0) {
+      selectObject(Math.min(index, placedObjects.length - 1));
+    } else {
+      updateSelectionText();
+      updatePrecisionText();
+    }
 
-if (snapToggle) {
-  snapToggle.addEventListener('change', () => {
-    updateStatus(snapToggle.checked ? 'Snap aktiv: 0.5 cm Raster' : 'Snap deaktiviert: freie Schritte');
+    updateStatus('Objekt gelöscht.');
   });
 }
 
-if (angleStepSelect) {
-  angleStepSelect.addEventListener('change', () => {
-    updateStatus(`Rotationsschritt: ${angleStepSelect.value} Grad`);
+if (viewModeBtn) {
+  viewModeBtn.addEventListener('click', () => {
+    const nextModeIndex = (viewModes.indexOf(currentViewMode) + 1) % viewModes.length;
+    currentViewMode = viewModes[nextModeIndex];
+    updateViewModeText(currentViewMode);
+
+    const selected = getSelectedObject();
+    if (selected) {
+      selected.viewMode = currentViewMode;
+      applyViewModeToNode(selected.group, selected.viewMode);
+      setObjectHighlight(selected, true);
+    }
+
+    updateStatus(`Ansicht: ${viewModeLabels[currentViewMode] || currentViewMode}`);
+  });
+}
+
+if (scaleSlider) {
+  scaleSlider.addEventListener('input', () => {
+    currentScaleFactor = Number(scaleSlider.value);
+    updateScaleText(currentScaleFactor);
+
+    const selected = getSelectedObject();
+    if (selected) {
+      selected.scaleFactor = currentScaleFactor;
+      selected.group.scale.setScalar(currentScaleFactor);
+      updateStatus(`Skalierung: ${currentScaleFactor.toFixed(2)}×`);
+    }
   });
 }
 
