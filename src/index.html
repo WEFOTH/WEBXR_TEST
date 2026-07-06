@@ -19,11 +19,47 @@
         <button id="loadSampleBtn" type="button">Testmodell laden</button>
         <button id="resetViewBtn" type="button">Ansicht zurücksetzen</button>
       </div>
+      <div class="panel">
+        <h2>Praezision in AR</h2>
+        <div class="controls compact">
+          <button id="prevObjBtn" type="button">Objekt vorher</button>
+          <button id="nextObjBtn" type="button">Objekt naechstes</button>
+        </div>
+        <p id="selectionText" class="hint">Auswahl: kein Objekt</p>
+        <div class="stepRow">
+          <label for="snapToggle">Snap 0.5 cm</label>
+          <input id="snapToggle" type="checkbox" checked />
+          <label for="angleStep">Winkel</label>
+          <select id="angleStep">
+            <option value="1">1 deg</option>
+            <option value="5" selected>5 deg</option>
+            <option value="15">15 deg</option>
+          </select>
+        </div>
+        <div class="axisGrid">
+          <button id="moveXNeg" type="button">X-</button>
+          <button id="moveXPos" type="button">X+</button>
+          <button id="moveYNeg" type="button">Y-</button>
+          <button id="moveYPos" type="button">Y+</button>
+          <button id="moveZNeg" type="button">Z-</button>
+          <button id="moveZPos" type="button">Z+</button>
+        </div>
+        <div class="axisGrid">
+          <button id="rotXNeg" type="button">Rot X-</button>
+          <button id="rotXPos" type="button">Rot X+</button>
+          <button id="rotYNeg" type="button">Rot Y-</button>
+          <button id="rotYPos" type="button">Rot Y+</button>
+          <button id="rotZNeg" type="button">Rot Z-</button>
+          <button id="rotZPos" type="button">Rot Z+</button>
+        </div>
+      </div>
       <p id="statusText" class="hint">Warte auf Modell…</p>
+      <p id="precisionText" class="hint">Pos: 0.000, 0.000, 0.000 | Rot: 0.0, 0.0, 0.0</p>
       <p class="hint">
         Tipp: In Rhino das Modell über Exportieren als <strong>.glb</strong> speichern
         (bettet Texturen ein). Im AR-Modus das Handy langsam bewegen, bis der Ring
-        auf einer Fläche erscheint – dann tippen, um das Modell zu platzieren.
+        auf einer Fläche erscheint. Tippen platziert ein Objekt, danach kann es uebers
+        Koordinatensystem in 0.5-cm-Schritten fein ausgerichtet werden.
       </p>
     </div>
 

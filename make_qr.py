@@ -8,7 +8,6 @@ OUT_DIR = Path(__file__).parent / 'qr-codes'
 
 TARGETS = {
     'qrcode.png': BASE_URL,
-    'xr-qrcode.png': BASE_URL + 'src/xr-test.html',
 }
 
 for filename, url in TARGETS.items():

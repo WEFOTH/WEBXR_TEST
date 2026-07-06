@@ -47,7 +47,7 @@ assets/                 → 3D-Modelle
 
 qr-codes/               → Mobile-Zugriff
 ├── qrcode.html         → App QR-Link
-└── xr-qrcode.html      → Test QR-Link
+└── qrcode.png          → Aktueller QR-Code
 ```
 
 ### Änderungen testen

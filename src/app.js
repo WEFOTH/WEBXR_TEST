@@ -59,6 +59,12 @@ const fileInput = document.getElementById('fileInput');
 const loadSampleBtn = document.getElementById('loadSampleBtn');
 const resetViewBtn = document.getElementById('resetViewBtn');
 const statusText = document.getElementById('statusText');
+const precisionText = document.getElementById('precisionText');
+const selectionText = document.getElementById('selectionText');
+const prevObjBtn = document.getElementById('prevObjBtn');
+const nextObjBtn = document.getElementById('nextObjBtn');
+const snapToggle = document.getElementById('snapToggle');
+const angleStepSelect = document.getElementById('angleStep');
 
 const sampleModelUrl = '../assets/Test.glb';
 
@@ -232,16 +238,170 @@ scene.add(reticle);
 
 let hitTestSource = null;
 const placedObjects = [];
+let selectedObjectIndex = -1;
+let isArSessionActive = false;
+
+const maxPlacedObjects = 24;
+const snapStep = 0.005;
+const fallbackStep = 0.01;
+const arPixelRatioCap = 1.5;
 
 const controller = renderer.xr.getController(0);
 controller.addEventListener('select', placeModel);
 scene.add(controller);
 
+function toDegrees(rad) {
+  return (rad * 180) / Math.PI;
+}
+
+function getSelectedObject() {
+  if (selectedObjectIndex < 0 || selectedObjectIndex >= placedObjects.length) {
+    return null;
+  }
+  return placedObjects[selectedObjectIndex];
+}
+
+function updatePrecisionText() {
+  const selected = getSelectedObject();
+  if (!precisionText) return;
+
+  if (!selected) {
+    precisionText.textContent = 'Pos: 0.000, 0.000, 0.000 | Rot: 0.0, 0.0, 0.0';
+    return;
+  }
+
+  const p = selected.group.position;
+  const r = selected.group.rotation;
+  precisionText.textContent =
+    `Pos: ${p.x.toFixed(3)}, ${p.y.toFixed(3)}, ${p.z.toFixed(3)} | Rot: ${toDegrees(r.x).toFixed(1)}, ${toDegrees(r.y).toFixed(1)}, ${toDegrees(r.z).toFixed(1)}`;
+}
+
+function updateSelectionText() {
+  if (!selectionText) return;
+  if (selectedObjectIndex === -1 || placedObjects.length === 0) {
+    selectionText.textContent = `Auswahl: kein Objekt (${placedObjects.length} platziert)`;
+  } else {
+    selectionText.textContent = `Auswahl: Objekt ${selectedObjectIndex + 1} von ${placedObjects.length}`;
+  }
+}
+
+function setObjectHighlight(placed, active) {
+  placed.axes.visible = active;
+  placed.group.traverse((child) => {
+    if (!child.isMesh || !child.material || !child.material.color) return;
+    if (active) {
+      child.material.emissive?.setHex(0x111111);
+      child.material.emissiveIntensity = 0.35;
+    } else {
+      child.material.emissive?.setHex(0x000000);
+      child.material.emissiveIntensity = 0;
+    }
+  });
+}
+
+function selectObject(index) {
+  const prev = getSelectedObject();
+  if (prev) {
+    setObjectHighlight(prev, false);
+  }
+
+  if (placedObjects.length === 0) {
+    selectedObjectIndex = -1;
+  } else {
+    selectedObjectIndex = Math.max(0, Math.min(index, placedObjects.length - 1));
+  }
+
+  const next = getSelectedObject();
+  if (next) {
+    setObjectHighlight(next, true);
+  }
+
+  updateSelectionText();
+  updatePrecisionText();
+}
+
+function cycleSelection(step) {
+  if (placedObjects.length === 0) {
+    updateStatus('Kein platziertes Objekt vorhanden.');
+    return;
+  }
+
+  const baseIndex = selectedObjectIndex === -1 ? 0 : selectedObjectIndex;
+  const nextIndex = (baseIndex + step + placedObjects.length) % placedObjects.length;
+  selectObject(nextIndex);
+}
+
+function roundToStep(value, step) {
+  return Math.round(value / step) * step;
+}
+
+function moveSelectedObject(axis, direction) {
+  const selected = getSelectedObject();
+  if (!selected) {
+    updateStatus('Bitte zuerst ein Objekt auswaehlen.');
+    return;
+  }
+
+  const useSnap = snapToggle?.checked ?? true;
+  const step = useSnap ? snapStep : fallbackStep;
+  selected.group.position[axis] += direction * step;
+  if (useSnap) {
+    selected.group.position[axis] = roundToStep(selected.group.position[axis], step);
+  }
+
+  updatePrecisionText();
+}
+
+function rotateSelectedObject(axis, direction) {
+  const selected = getSelectedObject();
+  if (!selected) {
+    updateStatus('Bitte zuerst ein Objekt auswaehlen.');
+    return;
+  }
+
+  const stepDeg = Number(angleStepSelect?.value ?? 5);
+  const stepRad = THREE.MathUtils.degToRad(stepDeg);
+  selected.group.rotation[axis] += direction * stepRad;
+
+  if (snapToggle?.checked ?? true) {
+    selected.group.rotation[axis] = roundToStep(selected.group.rotation[axis], stepRad);
+  }
+
+  updatePrecisionText();
+}
+
+function createPlacedAxes() {
+  const axes = new THREE.AxesHelper(0.35);
+  axes.visible = false;
+  axes.renderOrder = 10;
+  axes.traverse((child) => {
+    if (child.isLine) {
+      child.material.depthTest = false;
+      child.material.transparent = true;
+      child.material.opacity = 0.95;
+    }
+  });
+  return axes;
+}
+
 function placeModel() {
   if (!renderer.xr.isPresenting || !activeModel) return;
 
+  if (placedObjects.length >= maxPlacedObjects) {
+    updateStatus(`Maximal ${maxPlacedObjects} Objekte erreicht. Bitte ein Objekt entfernen oder Session neu starten.`);
+    return;
+  }
+
   const clone = modelRoot.clone(true);
   clone.visible = true;
+
+  clone.traverse((child) => {
+    if (child.isMesh) {
+      // Schattencasting im AR-Modus begrenzen, um Last bei grossen GLB zu reduzieren.
+      child.castShadow = false;
+      child.receiveShadow = false;
+    }
+  });
 
   if (reticle.visible) {
     clone.position.setFromMatrixPosition(reticle.matrix);
@@ -254,18 +414,26 @@ function placeModel() {
     clone.position.addScaledVector(direction, 1.5);
   }
 
+  const axes = createPlacedAxes();
+  clone.add(axes);
+
   scene.add(clone);
-  placedObjects.push(clone);
-  updateStatus(`${placedObjects.length} Objekt(e) platziert – erneut tippen für mehr.`);
+  placedObjects.push({ group: clone, axes });
+  selectObject(placedObjects.length - 1);
+  updateStatus(`${placedObjects.length} Objekt(e) platziert – erneut tippen fuer mehr.`);
 }
 
 renderer.xr.addEventListener('sessionstart', () => {
+  isArSessionActive = true;
+
   // Hintergrund/Fog würden das Kamerabild übermalen.
   scene.background = null;
   scene.fog = null;
   grid.visible = false;
   floor.visible = false;
   modelRoot.visible = false;
+
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, arPixelRatioCap));
 
   const session = renderer.xr.getSession();
   if (session.requestHitTestSource) {
@@ -280,10 +448,14 @@ renderer.xr.addEventListener('sessionstart', () => {
       });
   }
 
-  updateStatus('AR aktiv: Handy langsam bewegen, bis der Ring auf einer Fläche erscheint, dann tippen.');
+  updateStatus('AR aktiv: Ring suchen, tippen zum Platzieren, dann ueber XYZ-Buttons fein ausrichten.');
+  updateSelectionText();
+  updatePrecisionText();
 });
 
 renderer.xr.addEventListener('sessionend', () => {
+  isArSessionActive = false;
+
   scene.background = defaultBackground;
   scene.fog = defaultFog;
   grid.visible = true;
@@ -292,17 +464,55 @@ renderer.xr.addEventListener('sessionend', () => {
   reticle.visible = false;
   hitTestSource = null;
 
-  placedObjects.forEach((obj) => scene.remove(obj));
+  renderer.setPixelRatio(window.devicePixelRatio);
+
+  placedObjects.forEach((obj) => scene.remove(obj.group));
   placedObjects.length = 0;
+  selectedObjectIndex = -1;
 
   updateStatus('AR beendet.');
+  updateSelectionText();
+  updatePrecisionText();
 });
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  if (isArSessionActive) {
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, arPixelRatioCap));
+  } else {
+    renderer.setPixelRatio(window.devicePixelRatio);
+  }
 });
+
+prevObjBtn?.addEventListener('click', () => cycleSelection(-1));
+nextObjBtn?.addEventListener('click', () => cycleSelection(1));
+
+document.getElementById('moveXNeg')?.addEventListener('click', () => moveSelectedObject('x', -1));
+document.getElementById('moveXPos')?.addEventListener('click', () => moveSelectedObject('x', 1));
+document.getElementById('moveYNeg')?.addEventListener('click', () => moveSelectedObject('y', -1));
+document.getElementById('moveYPos')?.addEventListener('click', () => moveSelectedObject('y', 1));
+document.getElementById('moveZNeg')?.addEventListener('click', () => moveSelectedObject('z', -1));
+document.getElementById('moveZPos')?.addEventListener('click', () => moveSelectedObject('z', 1));
+
+document.getElementById('rotXNeg')?.addEventListener('click', () => rotateSelectedObject('x', -1));
+document.getElementById('rotXPos')?.addEventListener('click', () => rotateSelectedObject('x', 1));
+document.getElementById('rotYNeg')?.addEventListener('click', () => rotateSelectedObject('y', -1));
+document.getElementById('rotYPos')?.addEventListener('click', () => rotateSelectedObject('y', 1));
+document.getElementById('rotZNeg')?.addEventListener('click', () => rotateSelectedObject('z', -1));
+document.getElementById('rotZPos')?.addEventListener('click', () => rotateSelectedObject('z', 1));
+
+snapToggle?.addEventListener('change', () => {
+  updateStatus(snapToggle.checked ? 'Snap aktiv: 0.5 cm Raster' : 'Snap deaktiviert: freie Schritte');
+});
+
+angleStepSelect?.addEventListener('change', () => {
+  updateStatus(`Rotationsschritt: ${angleStepSelect.value} Grad`);
+});
+
+updateSelectionText();
+updatePrecisionText();
 
 function animate(timestamp, frame) {
   if (frame && hitTestSource) {

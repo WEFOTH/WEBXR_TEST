@@ -31,9 +31,6 @@ Ein modernes **Augmented Reality (AR)** System zum Visualisieren und Platzieren 
 ```
 Handy: Scan QR-Code oder öffne:
 https://wefoth.github.io/WEBXR_TEST/qr-codes/qrcode.html
-
-AR testen: 
-https://wefoth.github.io/WEBXR_TEST/qr-codes/xr-qrcode.html
 ```
 
 ### Lokal entwickeln (auf deinem Computer)
@@ -67,7 +64,7 @@ WEBXR_TEST/
 │
 ├── qr-codes/              # 📲 Mobile-Zugriff
 │   ├── qrcode.html        # App QR-Link
-│   └── xr-qrcode.html     # XR Test QR-Link
+│   └── qrcode.png         # Aktueller QR-Code
 │
 ├── docs/                  # 📷 Screenshots
 │

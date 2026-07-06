@@ -40,8 +40,7 @@ WEBXR_TEST/
 ├── qr-codes/                # QR-Code Seiten für Mobile Access
 │   ├── qrcode.html          # Hauptseite QR-Link
 │   ├── qrcode.png           # QR-Code Bild
-│   ├── xr-qrcode.html       # XR Test QR-Link
-│   └── xr-qrcode.png        # XR QR-Code Bild
+│   └── (nur aktueller QR-Einstieg)
 │
 ├── docs/                    # Dokumentation und Screenshots
 │   ├── screenshots/         # Testscreenshots
