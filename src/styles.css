@@ -66,10 +66,8 @@ p {
   margin-top: 0.55rem;
 }
 
-.primaryAction {
-  background: #22c55e;
-  color: #052e16;
-  font-weight: 700;
+.actionRow.single {
+  grid-template-columns: 1fr;
 }
 
 .scaleStrip {

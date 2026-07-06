@@ -61,8 +61,6 @@ const resetViewBtn = document.getElementById('resetViewBtn');
 const statusText = document.getElementById('statusText');
 const precisionText = document.getElementById('precisionText');
 const selectionText = document.getElementById('selectionText');
-const placeBtn = document.getElementById('placeBtn');
-const deleteBtn = document.getElementById('deleteBtn');
 const viewModeBtn = document.getElementById('viewModeBtn');
 const scaleSlider = document.getElementById('scaleSlider');
 const scaleValue = document.getElementById('scaleValue');
@@ -308,9 +306,15 @@ let selectedObjectIndex = -1;
 let isArSessionActive = false;
 
 const maxPlacedObjects = 24;
-const snapStep = 0.005;
-const fallbackStep = 0.01;
 const arPixelRatioCap = 1.5;
+
+const placementGrid = new THREE.GridHelper(0.5, 10, 0x4ade80, 0x4ade80);
+placementGrid.visible = false;
+placementGrid.renderOrder = 5;
+scene.add(placementGrid);
+const placementGridPosition = new THREE.Vector3();
+const placementGridQuaternion = new THREE.Quaternion();
+const placementGridScale = new THREE.Vector3();
 
 const controller = renderer.xr.getController(0);
 const raycaster = new THREE.Raycaster();
@@ -347,10 +351,6 @@ controller.addEventListener('select', () => {
   placeModel();
 });
 scene.add(controller);
-
-function toDegrees(rad) {
-  return (rad * 180) / Math.PI;
-}
 
 function getSelectedObject() {
   if (selectedObjectIndex < 0 || selectedObjectIndex >= placedObjects.length) {
@@ -439,56 +439,6 @@ function selectObject(index) {
   updatePrecisionText();
 }
 
-function cycleSelection(step) {
-  if (placedObjects.length === 0) {
-    updateStatus('Kein platziertes Objekt vorhanden.');
-    return;
-  }
-
-  const baseIndex = selectedObjectIndex === -1 ? 0 : selectedObjectIndex;
-  const nextIndex = (baseIndex + step + placedObjects.length) % placedObjects.length;
-  selectObject(nextIndex);
-}
-
-function roundToStep(value, step) {
-  return Math.round(value / step) * step;
-}
-
-function moveSelectedObject(axis, direction) {
-  const selected = getSelectedObject();
-  if (!selected) {
-    updateStatus('Bitte zuerst ein Objekt auswaehlen.');
-    return;
-  }
-
-  const useSnap = snapToggle ? snapToggle.checked : true;
-  const step = useSnap ? snapStep : fallbackStep;
-  selected.group.position[axis] += direction * step;
-  if (useSnap) {
-    selected.group.position[axis] = roundToStep(selected.group.position[axis], step);
-  }
-
-  updatePrecisionText();
-}
-
-function rotateSelectedObject(axis, direction) {
-  const selected = getSelectedObject();
-  if (!selected) {
-    updateStatus('Bitte zuerst ein Objekt auswaehlen.');
-    return;
-  }
-
-  const stepDeg = Number(angleStepSelect ? angleStepSelect.value : 5);
-  const stepRad = THREE.MathUtils.degToRad(stepDeg);
-  selected.group.rotation[axis] += direction * stepRad;
-
-  if (snapToggle ? snapToggle.checked : true) {
-    selected.group.rotation[axis] = roundToStep(selected.group.rotation[axis], stepRad);
-  }
-
-  updatePrecisionText();
-}
-
 function createPlacedAxes() {
   const axes = new THREE.AxesHelper(0.35);
   axes.visible = false;
@@ -557,6 +507,7 @@ renderer.xr.addEventListener('sessionstart', () => {
   grid.visible = false;
   floor.visible = false;
   modelRoot.visible = false;
+  placementGrid.visible = false;
 
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, arPixelRatioCap));
 
@@ -573,7 +524,7 @@ renderer.xr.addEventListener('sessionstart', () => {
       });
   }
 
-  updateStatus('AR aktiv: Ring suchen, tippen zum Platzieren, dann ueber XYZ-Buttons fein ausrichten.');
+  updateStatus('AR aktiv: Ring suchen und tippen zum Platzieren oder Objekt antippen zum Auswählen.');
   updateSelectionText();
   updatePrecisionText();
 });
@@ -587,6 +538,7 @@ renderer.xr.addEventListener('sessionend', () => {
   floor.visible = true;
   modelRoot.visible = true;
   reticle.visible = false;
+  placementGrid.visible = false;
   hitTestSource = null;
 
   renderer.setPixelRatio(window.devicePixelRatio);
@@ -610,34 +562,6 @@ window.addEventListener('resize', () => {
     renderer.setPixelRatio(window.devicePixelRatio);
   }
 });
-
-if (placeBtn) {
-  placeBtn.addEventListener('click', () => placeModel());
-}
-
-if (deleteBtn) {
-  deleteBtn.addEventListener('click', () => {
-    const selected = getSelectedObject();
-    if (!selected) {
-      updateStatus('Kein Objekt ausgewählt.');
-      return;
-    }
-
-    const index = placedObjects.indexOf(selected);
-    scene.remove(selected.group);
-    placedObjects.splice(index, 1);
-    selectedObjectIndex = -1;
-
-    if (placedObjects.length > 0) {
-      selectObject(Math.min(index, placedObjects.length - 1));
-    } else {
-      updateSelectionText();
-      updatePrecisionText();
-    }
-
-    updateStatus('Objekt gelöscht.');
-  });
-}
 
 if (viewModeBtn) {
   viewModeBtn.addEventListener('click', () => {
@@ -680,8 +604,16 @@ function animate(timestamp, frame) {
       const pose = hits[0].getPose(renderer.xr.getReferenceSpace());
       reticle.visible = true;
       reticle.matrix.fromArray(pose.transform.matrix);
+
+      placementGrid.visible = true;
+      placementGrid.matrix.fromArray(pose.transform.matrix);
+      placementGrid.matrix.decompose(placementGridPosition, placementGridQuaternion, placementGridScale);
+      placementGrid.position.copy(placementGridPosition);
+      placementGrid.quaternion.copy(placementGridQuaternion);
+      placementGrid.position.y += 0.002;
     } else {
       reticle.visible = false;
+      placementGrid.visible = false;
     }
   }
 

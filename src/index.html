@@ -27,9 +27,7 @@
         <button id="loadSampleBtn" type="button">Testmodell laden</button>
         <button id="resetViewBtn" type="button">Ansicht zurücksetzen</button>
       </div>
-      <div class="actionRow">
-        <button id="placeBtn" type="button" class="primaryAction">Objekt platzieren</button>
-        <button id="deleteBtn" type="button" class="secondary">Objekt löschen</button>
+      <div class="actionRow single">
         <button id="viewModeBtn" type="button" class="secondary">Ansicht: Original</button>
       </div>
       <div class="scaleStrip">
@@ -41,8 +39,8 @@
       <p id="statusText" class="statusPill">Warte auf Modell…</p>
       <p id="precisionText" class="hint">Skalierung: 1.00×</p>
       <p class="hint">
-        Tippe im AR-Modus ein Objekt an, um es auszuwählen. Danach kannst du es löschen,
-        in der Ansicht ändern oder skalieren. Ein weiterer Platzierungs-Tap erzeugt ein neues Objekt.
+        Tippe im AR-Modus ein Objekt an, um es auszuwählen. Wenn kein Objekt getroffen wird,
+        wird ein neues Objekt auf der erkannten Ebene platziert.
       </p>
       <div id="errorPanel" class="errorPanel" hidden>
         <strong>Fehler beim Laden</strong>
