@@ -298,7 +298,7 @@ updateViewModeText(currentViewMode);
 // --- Augmented Reality ---
 
 const arButton = ARButton.createButton(renderer, {
-  optionalFeatures: ['hit-test', 'dom-overlay'],
+  optionalFeatures: ['hit-test', 'dom-overlay', 'anchors'],
   domOverlay: { root: document.body },
 });
 document.body.appendChild(arButton);
@@ -315,6 +315,7 @@ reticle.visible = false;
 scene.add(reticle);
 
 let hitTestSource = null;
+let latestHitTestResult = null;
 const placedObjects = [];
 let selectedObjectIndex = -1;
 let isArSessionActive = false;
@@ -553,8 +554,22 @@ function placeModel() {
     scaleFactor: currentScaleFactor,
     baseYaw,
     rotationDeg: currentRotationDeg,
+    anchor: null,
   };
   applyRotationToPlaced(placed);
+
+  // Anchor haelt die Position stabil, wenn das Geraet sein Tracking korrigiert.
+  if (reticle.visible && latestHitTestResult && typeof latestHitTestResult.createAnchor === 'function') {
+    latestHitTestResult
+      .createAnchor()
+      .then((anchor) => {
+        placed.anchor = anchor;
+      })
+      .catch(() => {
+        placed.anchor = null;
+      });
+  }
+
   placedObjects.push(placed);
   selectObject(placedObjects.length - 1);
   updateStatus(`${placedObjects.length} Objekt(e) platziert – erneut tippen fuer mehr.`);
@@ -604,6 +619,7 @@ renderer.xr.addEventListener('sessionend', () => {
   reticle.visible = false;
   placementGrid.visible = false;
   hitTestSource = null;
+  latestHitTestResult = null;
 
   renderer.setPixelRatio(window.devicePixelRatio);
 
@@ -691,6 +707,7 @@ function animate(timestamp, frame) {
   if (frame && hitTestSource) {
     const hits = frame.getHitTestResults(hitTestSource);
     if (hits.length > 0) {
+      latestHitTestResult = hits[0];
       const pose = hits[0].getPose(renderer.xr.getReferenceSpace());
       reticle.visible = true;
       reticle.matrix.fromArray(pose.transform.matrix);
@@ -702,8 +719,22 @@ function animate(timestamp, frame) {
       placementGrid.quaternion.copy(placementGridQuaternion);
       placementGrid.position.y += 0.002;
     } else {
+      latestHitTestResult = null;
       reticle.visible = false;
       placementGrid.visible = false;
+    }
+  }
+
+  // Verankerte Objekte folgen der vom Geraet korrigierten Anker-Position.
+  if (frame && renderer.xr.isPresenting) {
+    const referenceSpace = renderer.xr.getReferenceSpace();
+    for (const placed of placedObjects) {
+      if (!placed.anchor) continue;
+      const anchorPose = frame.getPose(placed.anchor.anchorSpace, referenceSpace);
+      if (anchorPose) {
+        const p = anchorPose.transform.position;
+        placed.group.position.set(p.x, p.y, p.z);
+      }
     }
   }
 
