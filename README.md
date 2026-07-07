@@ -57,11 +57,9 @@ WEBXR_ANDROID/
 ├── src/
 │   ├── index.html        # App-Seite (HUD, Fehler-Panel)
 │   ├── app.js            # Gesamte Logik: Szene, Laden, AR, Platzierung, Anker
-│   ├── styles.css        # Styling inkl. AR-Kompaktleiste (body.ar-active)
-│   └── xr-test.html      # Veraltete Testseite (nicht mehr gepflegt)
-├── assets/               # Beispielmodelle (Test.glb, Test_01.glb, TEST.gltf)
+│   └── styles.css        # Styling inkl. AR-Kompaktleiste (body.ar-active)
+├── assets/               # Beispielmodelle (Test.glb)
 ├── qr-codes/             # QR-Einstieg fürs Handy (qrcode.html + qrcode.png)
-├── docs/                 # Screenshots
 ├── index.html            # Weiterleitung auf src/index.html
 ├── serve.ps1             # Lokaler Dev-Server (Windows)
 ├── make_qr.py            # QR-Generator (Python, optional)

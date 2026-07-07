@@ -29,9 +29,7 @@ Die Smartphone-AR-App ist funktionsfähig und live deployt. Modelle lassen sich 
 ## Offene Punkte / Ideen
 
 - [ ] **iOS-Fallback über AR Quick Look:** .usdz-Export aus Rhino 8 + `rel="ar"`-Link, da iOS kein WebXR-AR unterstützt (recherchiert 06.07.2026)
-- [ ] `Test_01.glb` optional als (zweites) Testmodell im UI verdrahten (liegt bisher nur in `assets/`)
 - [ ] Objekt löschen im AR-Modus (aktuell nur „alle weg" durch Session-Ende)
-- [ ] Veraltete `src/xr-test.html` entfernen oder aktualisieren
 - [ ] Git-Identität lokal setzen (Commits laufen derzeit über die automatisch erratene Hochschul-Adresse)
 
 ## Bekannte Einschränkungen

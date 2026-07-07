@@ -29,7 +29,6 @@ cd WEBXR_ANDROID
 | `src/styles.css` | Styling; AR-Kompaktleiste unter `body.ar-active` |
 | `assets/` | Beispielmodelle (Testmodell-Button lädt `Test.glb`) |
 | `qr-codes/` | QR-Einstiegsseite + PNG |
-| `src/xr-test.html` | veraltete Testseite, nicht mehr gepflegt |
 
 ## Eigenes Modell einbinden
 
